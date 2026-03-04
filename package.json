@@ -5,7 +5,11 @@
   "scripts": {
     "dev": "pnpm --filter ./packages/mini-react build && (pnpm --filter ./packages/mini-react run build:watch &) && pnpm --filter ./apps/playground dev",
     "build": "pnpm -r build",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "check:build": "pnpm run build",
+    "check:test": "pnpm run test",
+    "check:playground": "pnpm --filter ./apps/playground build",
+    "check": "pnpm run check:build && pnpm run check:playground"
   },
   "packageManager": "pnpm@10.0.0",
   "engines": {
