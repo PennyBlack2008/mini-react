@@ -1,3 +1,4 @@
-# Testing Strategy (Placeholder)
+# Testing Strategy (Deprecated)
 
-TODO: define unit, integration, and playground validation plans.
+Canonical guide moved to [`docs/testing.md`](testing.md).  
+Keep this file as a compatibility shim for existing links.

@@ -1,5 +1,4 @@
-# PR Review Guidelines (Placeholder)
+# PR Review Guidelines (Deprecated)
 
-This document is intentionally minimal for repository bootstrap.
-
-TODO: define review checklist and merge criteria.
+Canonical checklist moved to [`docs/pr-review.md`](pr-review.md).  
+Keep this file as a compatibility shim for existing links.
