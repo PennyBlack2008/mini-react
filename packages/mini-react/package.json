@@ -1,0 +1,22 @@
+{
+  "name": "mini-react",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Core library package for learning a React-like runtime",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:watch": "tsc -p tsconfig.json --watch",
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
