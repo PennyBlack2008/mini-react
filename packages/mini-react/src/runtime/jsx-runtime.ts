@@ -2,7 +2,7 @@ import { createElementInternal, type PrimitiveChild, type VNode, type VNodeType 
 
 export { Fragment } from "../shared";
 
-export function createElement(type: VNodeType, props: Record<string, unknown> | null, ...children: PrimitiveChild[]): VNode {
+export function createElement(type: VNodeType, props: Record<string, unknown> | null, ...children: unknown[]): VNode {
   return createElementInternal(type, props ?? null, children);
 }
 

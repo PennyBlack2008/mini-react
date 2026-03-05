@@ -1,6 +1,8 @@
 import type { VNode } from "../shared";
 
-export function render(element: VNode | null, container: HTMLElement | null): void {
+export type RenderInput = VNode | null | string | number | boolean | undefined;
+
+export function commitRoot(container: HTMLElement | null, element: RenderInput): void {
   // TODO: convert virtual nodes to DOM and handle updates.
   if (!container) {
     return;
@@ -12,4 +14,8 @@ export function render(element: VNode | null, container: HTMLElement | null): vo
   }
 
   container.textContent = `[mini-react placeholder] ${typeof element === "object" ? "rendered VNode" : String(element)}`;
+}
+
+export function render(element: RenderInput, container: HTMLElement | null): void {
+  commitRoot(container, element);
 }
