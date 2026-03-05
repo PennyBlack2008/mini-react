@@ -1,6 +1,10 @@
-import { createRoot } from "../src/core";
+import { createRoot, createElement, type VNode } from "../src/index";
 
 describe("createRoot", () => {
+  const makeContainer = (initialText = ""): HTMLElement => {
+    return { textContent: initialText } as unknown as HTMLElement;
+  };
+
   test("returns render and unmount functions", () => {
     const root = createRoot(null);
 
@@ -13,11 +17,11 @@ describe("createRoot", () => {
 
     expect(() => root.render(null)).not.toThrow();
     expect(() => root.render("text")).not.toThrow();
-    expect(() => root.render({ type: "div", props: null, children: [], key: null })).not.toThrow();
+    expect(() => root.render({ type: "div", props: null, children: [], key: null } as VNode)).not.toThrow();
   });
 
   test("clears container text on unmount", async () => {
-    const rootContainer = { textContent: "seed" } as unknown as HTMLElement;
+    const rootContainer = makeContainer("seed");
     const root = createRoot(rootContainer);
 
     root.render("node");
@@ -30,7 +34,7 @@ describe("createRoot", () => {
   });
 
   test("flushes only latest render value in the same tick", async () => {
-    const rootContainer = { textContent: "" } as unknown as HTMLElement;
+    const rootContainer = makeContainer("");
     const root = createRoot(rootContainer);
 
     root.render("first");
@@ -43,7 +47,7 @@ describe("createRoot", () => {
   });
 
   test("is idempotent for unmount and safe after unmount", () => {
-    const rootContainer = { textContent: "seed" } as unknown as HTMLElement;
+    const rootContainer = makeContainer("seed");
     const root = createRoot(rootContainer);
 
     root.unmount();
@@ -52,5 +56,23 @@ describe("createRoot", () => {
 
     expect(() => root.render("after-unmount")).not.toThrow();
     expect(rootContainer.textContent).toBe("");
+  });
+
+  test("smoke: createRoot from index renders via renderer-dom contract", async () => {
+    const rootContainer = makeContainer("");
+    const root = createRoot(rootContainer);
+    const app = createElement("div", null, "hello");
+
+    root.render(app);
+    await Promise.resolve();
+
+    expect(rootContainer.textContent).toBe("[mini-react placeholder] rendered VNode");
+  });
+
+  test("smoke: createRoot null path through public API does not throw", () => {
+    const root = createRoot(null);
+    const vnode = createElement("span", null, "public-root");
+
+    expect(() => root.render(vnode)).not.toThrow();
   });
 });
