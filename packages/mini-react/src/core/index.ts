@@ -1,4 +1,4 @@
-import { render } from "../renderer-dom";
+import { commitRoot } from "../renderer-dom";
 
 export interface Root {
   render(element: unknown): void;
@@ -18,7 +18,7 @@ export function createRoot(container: HTMLElement | null): Root {
     if (!state.mounted || state.container == null) {
       return;
     }
-    render(state.pending as never, state.container);
+    commitRoot(state.container, state.pending as never);
   };
 
   return {

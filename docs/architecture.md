@@ -68,3 +68,4 @@ mini-react는 다음 두 계층으로 나뉜다.
 - 2026-03-04: `createRoot`에 최소 렌더 스케줄링(동일 tick 배칭)과 `unmount` 멱등성 규약을 추가해 동시 render/unmount 안전성을 강화.
 - 2026-03-04: `renderer-dom.render` 기본 계약(null 컨테이너/null 렌더/primitive+VNode placeholder) 단위 테스트를 추가해 DOM 출력 규약을 고정.
 - 2026-03-04: `createRoot`를 공개 진입점(`index.ts`) 기준으로 통합 스모크 테스트하고, `createElement` 연계 렌더 경로를 검증.
+- 2026-03-04: `core`에서 렌더 스케줄링/호출만 담당하고 `renderer-dom`에서 실제 DOM 커밋(`commitRoot`)을 수행하도록 계층 분리를 반영.
