@@ -1,6 +1,6 @@
 import type { VNode } from "../shared";
 
-export function render(element: VNode | null, container: HTMLElement | null): void {
+export function render(element: unknown, container: HTMLElement | null): void {
   // TODO: convert virtual nodes to DOM and handle updates.
   if (!container) {
     return;

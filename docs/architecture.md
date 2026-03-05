@@ -66,3 +66,4 @@ mini-react는 다음 두 계층으로 나뉜다.
 - 2026-03-04: mini-react 운영 산출물을 위한 `check` 워크플로우(빌드/테스트/플레이그라운드)와 문서 정합성 계획을 연결.
 - 2026-03-04: `packages/mini-react/src/core/index.ts`에 `createRoot(container)` 최소 계약(render/unmount)을 구현하고 `core` 단위 테스트 추가.
 - 2026-03-04: `createRoot`에 최소 렌더 스케줄링(동일 tick 배칭)과 `unmount` 멱등성 규약을 추가해 동시 render/unmount 안전성을 강화.
+- 2026-03-04: `renderer-dom.render` 기본 계약(null 컨테이너/null 렌더/primitive+VNode placeholder) 단위 테스트를 추가해 DOM 출력 규약을 고정.
