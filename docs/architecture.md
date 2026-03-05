@@ -72,3 +72,6 @@ mini-react는 다음 두 계층으로 나뉜다.
 - 2026-03-04: `shared.createElementInternal`에 children 정규화(중첩 배열 펼침, null/undefined/boolean 제거) 적용.
 - 2026-03-04: `shared.createElementInternal`가 key props를 제외한 props만 보유하도록 정규화 규칙을 도입.
 - 2026-03-04: `runtime.createElement` 입력 타입을 unknown[]로 확장해 정규화 파이프라인이 중첩 children를 수용하도록 조정.
+- 2026-03-05: `packages/mini-react/src/core/fiber.ts`에 최소 Fiber 모델(`Fiber`, `NoFlags`, `Placement`, `Update`, `Deletion`)을 도입.
+- 2026-03-05: `packages/mini-react/src/core/reconcile.ts`에 children normalize 정책을 반영해 `null/undefined/boolean` 스킵과 `string|number` 텍스트 노드 래핑 규약을 고정.
+- 2026-03-05: `reconcileChildren` Update 경로에서 `child/sibling` 링크를 초기화하고, 재사용 oldFiber가 `deletions`로 오염되지 않음을 테스트로 보강.
