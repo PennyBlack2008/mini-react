@@ -64,3 +64,5 @@ mini-react는 다음 두 계층으로 나뉜다.
 - 2026-03-04: `docs/architecture.md`의 Placeholder를 실제 아키텍처 뼈대(설계 개요/경계/흐름/불변식/확장 포인트)로 대체.
 - 2026-03-04: `packages/mini-react/src/index.ts`를 유일 공개 API 진입점으로 명시하고 `internal` 노출 규칙을 문서화.
 - 2026-03-04: mini-react 운영 산출물을 위한 `check` 워크플로우(빌드/테스트/플레이그라운드)와 문서 정합성 계획을 연결.
+- 2026-03-04: `packages/mini-react/src/core/index.ts`에 `createRoot(container)` 최소 계약(render/unmount)을 구현하고 `core` 단위 테스트 추가.
+- 2026-03-04: `createRoot`에 최소 렌더 스케줄링(동일 tick 배칭)과 `unmount` 멱등성 규약을 추가해 동시 render/unmount 안전성을 강화.
