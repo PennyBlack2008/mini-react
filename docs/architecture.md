@@ -75,3 +75,6 @@ mini-react는 다음 두 계층으로 나뉜다.
 - 2026-03-05: `packages/mini-react/src/core/fiber.ts`에 최소 Fiber 모델(`Fiber`, `NoFlags`, `Placement`, `Update`, `Deletion`)을 도입.
 - 2026-03-05: `packages/mini-react/src/core/reconcile.ts`에 children normalize 정책을 반영해 `null/undefined/boolean` 스킵과 `string|number` 텍스트 노드 래핑 규약을 고정.
 - 2026-03-05: `reconcileChildren` Update 경로에서 `child/sibling` 링크를 초기화하고, 재사용 oldFiber가 `deletions`로 오염되지 않음을 테스트로 보강.
+- 2026-03-06: `packages/mini-react/src/core/index.ts`를 HostRoot 모델 기반으로 바꾸고, `createRoot.flush`에서 reconcile 파이프라인을 연결.
+- 2026-03-06: `createRoot.flush`에서 동일 tick 배칭 후 `rootFiber.child`를 계산해 다음 commit 단계로 넘길 계약을 고정.
+- 2026-03-06: commit 경유를 위한 임시 어댑터를 둬 현재 renderer는 reconciliation을 계산하고 기존 placeholder 계약은 유지하도록 전환점 마련.

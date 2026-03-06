@@ -1,4 +1,6 @@
 import { commitRoot } from "../renderer-dom";
+import { reconcileChildren } from "./reconcile";
+import { type Fiber, NoFlags } from "./fiber";
 
 export interface Root {
   render(element: unknown): void;
@@ -6,16 +8,31 @@ export interface Root {
 }
 
 export function createRoot(container: HTMLElement | null): Root {
+  const rootFiber: Fiber = {
+    type: "ROOT",
+    key: null,
+    pendingProps: null,
+    memoizedProps: null,
+    stateNode: container,
+
+    return: null,
+    child: null,
+    sibling: null,
+    alternate: null,
+    flags: NoFlags,
+  };
+
   const state = {
     container,
     mounted: container != null,
     // 현재 mini-react는 단일 마이크로태스크 배칭만 수행한다.
-    // 실제 React 스케줄러(우선순위 Lane/작업 큐/중단 재개/스타일별 선점/flushSync)는
+    // 실제 React 스케줄러(우선순위 Lane/작업 큐/중단 재개/flushSync)는
     // 여기 createRoot 내부가 아니라 core/scheduler 계층(예: src/reconciler/scheduler.ts)
     // 에서 관리되어야 한다.
     // 즉, 지금은 "요청이 들어오면 다음 tick에 한 번만 commit"으로 친화한 버전이다.
     scheduled: false,
-    pending: null as unknown
+    pending: null as unknown,
+    rootFiber
   };
 
   const flush = (): void => {
@@ -23,6 +40,14 @@ export function createRoot(container: HTMLElement | null): Root {
     if (!state.mounted || state.container == null) {
       return;
     }
+
+    // 현재 단계: root 쪽의 단일 child를 reconcile하고, 렌더러는 재조정 결과의 시작점으로
+    // commit한다. (renderer는 아직 Fiber commit을 완전 구현하지 않음)
+    const pendingChildren = state.pending == null ? [] : [state.pending];
+    reconcileChildren(state.rootFiber, state.rootFiber.child, pendingChildren);
+
+    // TODO: 추후 commitRoot는 Fiber 트리를 직접 consume 하도록 전환한다.
+    // - 지금은 현재 구현 호환성을 위해 state.pending을 그대로 커밋한다.
     commitRoot(state.container, state.pending as never);
   };
 
