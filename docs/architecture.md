@@ -78,3 +78,6 @@ mini-react는 다음 두 계층으로 나뉜다.
 - 2026-03-06: `packages/mini-react/src/core/index.ts`를 HostRoot 모델 기반으로 바꾸고, `createRoot.flush`에서 reconcile 파이프라인을 연결.
 - 2026-03-06: `createRoot.flush`에서 동일 tick 배칭 후 `rootFiber.child`를 계산해 다음 commit 단계로 넘길 계약을 고정.
 - 2026-03-06: commit 경유를 위한 임시 어댑터를 둬 현재 renderer는 reconciliation을 계산하고 기존 placeholder 계약은 유지하도록 전환점 마련.
+- 2026-03-06: `packages/mini-react/src/renderer-dom/index.ts`를 Fiber commit 엔트리로 확장해 HostText/HostComponent 문자열 렌더링을 지원.
+- 2026-03-06: `renderer-dom`에서 삭제 큐를 수용하는 제거 루틴을 추가하고, 다음 커밋에서 stateNode 기반 실제 노드 교체/제거로 확장 가능한 구조로 고정.
+- 2026-03-06: `packages/mini-react/__tests__/renderer-dom.test.ts`와 `core.test.ts`를 placeholder 문자열 계약에서 Fiber 기반 출력 계약으로 갱신.

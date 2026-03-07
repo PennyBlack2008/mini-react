@@ -27,7 +27,7 @@ describe("createRoot", () => {
     root.render("node");
     await Promise.resolve();
 
-    expect(rootContainer.textContent).toContain("[mini-react placeholder]");
+    expect(rootContainer.textContent).toBe("node");
     root.unmount();
 
     expect(rootContainer.textContent).toBe("");
@@ -66,7 +66,7 @@ describe("createRoot", () => {
     root.render(app);
     await Promise.resolve();
 
-    expect(rootContainer.textContent).toBe("[mini-react placeholder] rendered VNode");
+    expect(rootContainer.textContent).toBe("<div>hello</div>");
   });
 
   test("smoke: createRoot null path through public API does not throw", () => {

@@ -56,7 +56,7 @@ import { Fiber, Placement, TextSymbol, Update } from "./fiber";
 // VNode 하나를 fiber로 변환한다.
 // type/key는 식별용, pendingProps는 다음 렌더 단계에서 비교할 입력으로 사용한다.
 export function createFiberFromElement(element: any): Fiber {
-  return {
+  const root: Fiber = {
     type: element.type,
     key: element.key == null ? null : String(element.key),
     pendingProps: element.props,
@@ -70,10 +70,25 @@ export function createFiberFromElement(element: any): Fiber {
     alternate: null,
     flags: Placement,
   };
+
+  const rawChildren = Array.isArray(element.children) ? element.children : [];
+  if (rawChildren.length > 0) {
+    reconcileChildren(root, null, rawChildren);
+  }
+
+  return root;
 }
 
 function sameType(oldFiber: Fiber | null, element: any) {
   return oldFiber && element && oldFiber.type === element.type;
+}
+
+function getNextChildrenFromElement(element: any): any[] {
+  if (!element || !Array.isArray(element.children)) {
+    return [];
+  }
+
+  return element.children;
 }
 
 // reconcile 진입 전에 children를 렌더 패스가 다루기 쉬운 형태로 정규화한다.
@@ -140,6 +155,9 @@ export function reconcileChildren(
         child: null,
         sibling: null,
       };
+
+      // 최소 reconciler에서는 재사용되는 fiber라도 자식은 매 프레임 재조정한다.
+      reconcileChildren(newFiber, oldFiber!.child, getNextChildrenFromElement(element));
     } else {
       // 타입이 바뀌면 새로 생성하고 기존 노드는 삭제 큐에 둔다.
       newFiber = createFiberFromElement(element);

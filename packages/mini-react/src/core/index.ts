@@ -42,13 +42,12 @@ export function createRoot(container: HTMLElement | null): Root {
     }
 
     // 현재 단계: root 쪽의 단일 child를 reconcile하고, 렌더러는 재조정 결과의 시작점으로
-    // commit한다. (renderer는 아직 Fiber commit을 완전 구현하지 않음)
+    // commit한다.
     const pendingChildren = state.pending == null ? [] : [state.pending];
     reconcileChildren(state.rootFiber, state.rootFiber.child, pendingChildren);
 
-    // TODO: 추후 commitRoot는 Fiber 트리를 직접 consume 하도록 전환한다.
-    // - 지금은 현재 구현 호환성을 위해 state.pending을 그대로 커밋한다.
-    commitRoot(state.container, state.pending as never);
+    // 최종 commit은 Fiber 트리를 직접 consume.
+    commitRoot(state.container, state.rootFiber.child);
   };
 
   return {
