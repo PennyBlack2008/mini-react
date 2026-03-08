@@ -1,4 +1,10 @@
-import { Fiber, NoFlags, TextSymbol } from "../core/fiber";
+import {
+  Deletion,
+  Fiber,
+  Placement,
+  TextSymbol,
+  Update,
+} from "../core/fiber";
 import { type VNode, Fragment } from "../shared";
 
 export type RenderInput =
@@ -110,7 +116,7 @@ function createTextFiber(nodeValue: string): Fiber {
     child: null,
     sibling: null,
     alternate: null,
-    flags: NoFlags,
+    flags: Placement,
   };
 }
 
@@ -127,7 +133,7 @@ function createFiberFromVNode(vNode: VNode): Fiber {
     child: null,
     sibling: null,
     alternate: null,
-    flags: NoFlags,
+    flags: Placement,
   };
 
   let prevSibling: Fiber | null = null;
@@ -259,6 +265,38 @@ function serializeDom(nodes: MiniNode[]): string {
   return nodes.map(serializeNode).join("");
 }
 
+function hasPendingCommitFlags(fiber: Fiber | null): boolean {
+  let next: Fiber | null = fiber;
+
+  while (next) {
+    if (next.flags & (Placement | Update)) {
+      return true;
+    }
+
+    if (next.child && hasPendingCommitFlags(next.child)) {
+      return true;
+    }
+
+    next = next.sibling;
+  }
+
+  return false;
+}
+
+function clearCommitFlags(fiber: Fiber | null): void {
+  let next: Fiber | null = fiber;
+
+  while (next) {
+    next.flags &= ~ (Placement | Update | Deletion);
+
+    if (next.child) {
+      clearCommitFlags(next.child);
+    }
+
+    next = next.sibling;
+  }
+}
+
 // reconciler의 deletions 큐를 반영해 제거 대상 노드를 실제 트리에서 삭제한다.
 function removeDeletedNodes(
   container: MiniContainer,
@@ -296,6 +334,7 @@ function removeDeletedNodes(
 
 // 현재 Fiber 트리를 기준으로 컨테이너 출력 상태(textContent / child cache)를 갱신한다.
 function commitFiber(container: MiniContainer, rootFiber: Fiber | null): void {
+  const hasDeletions = !!rootFiber?.deletions?.length;
   removeDeletedNodes(container, rootFiber);
 
   if (rootFiber == null) {
@@ -305,6 +344,12 @@ function commitFiber(container: MiniContainer, rootFiber: Fiber | null): void {
   }
 
   const startNode = rootFiber.type === "ROOT" ? rootFiber.child : rootFiber;
+  const shouldCommit = hasPendingCommitFlags(startNode) || hasDeletions;
+
+  if (!shouldCommit) {
+    return;
+  }
+
   const nextChildren = startNode ? buildDomTree(startNode, rootFiber) : [];
 
   // 최소 구현: 매번 자식 리스트를 다시 계산해 반영한다.
@@ -316,6 +361,7 @@ function commitFiber(container: MiniContainer, rootFiber: Fiber | null): void {
   }
 
   container.textContent = serializeDom(nextChildren);
+  clearCommitFlags(startNode);
 }
 
 // 외부에서 들어온 입력(Fiber 또는 렌더 입력)을 커밋 가능한 Fiber로 정규화해 반영한다.

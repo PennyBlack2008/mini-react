@@ -80,7 +80,13 @@ export function createFiberFromElement(element: any): Fiber {
 }
 
 function sameType(oldFiber: Fiber | null, element: any) {
-  return oldFiber && element && oldFiber.type === element.type;
+  if (!oldFiber || !element) {
+    return false;
+  }
+
+  const nextKey =
+    element && element.key == null ? null : String(element.key);
+  return oldFiber.type === element.type && oldFiber.key === nextKey;
 }
 
 function getNextChildrenFromElement(element: any): any[] {
@@ -147,6 +153,7 @@ export function reconcileChildren(
     if (sameType(oldFiber, element)) {
       // 재사용 시 이전 상태와 링크를 분리 정리한다.
       // child/sibling를 null로 리셋하지 않으면 이전 하위 트리 링크가 새 트리에 섞일 수 있다.
+      // 동일 fiber로 판단되면 교체/삽입이 아닌 갱신(Update)로 표기한다.
       newFiber = {
         ...oldFiber!,
         pendingProps: element.props,

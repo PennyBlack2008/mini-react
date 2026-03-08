@@ -32,7 +32,7 @@ export function createRoot(container: HTMLElement | null): Root {
     // 즉, 지금은 "요청이 들어오면 다음 tick에 한 번만 commit"으로 친화한 버전이다.
     scheduled: false,
     pending: null as unknown,
-    rootFiber
+    rootFiber,
   };
 
   const flush = (): void => {
@@ -41,13 +41,26 @@ export function createRoot(container: HTMLElement | null): Root {
       return;
     }
 
-    // 현재 단계: root 쪽의 단일 child를 reconcile하고, 렌더러는 재조정 결과의 시작점으로
-    // commit한다.
+    // 현재 단계: root 쪽의 단일 child를 reconcile하고, 렌더러는 재조정 결과의 시작점으로 commit한다.
+    // 이전 렌더 트리는 rootFiber.alternate?.child로 전달한다.
+    const currentFirstChild = state.rootFiber.alternate?.child ?? null;
     const pendingChildren = state.pending == null ? [] : [state.pending];
-    reconcileChildren(state.rootFiber, state.rootFiber.child, pendingChildren);
+    reconcileChildren(state.rootFiber, currentFirstChild, pendingChildren);
 
     // 최종 commit은 Fiber 트리를 직접 consume.
     commitRoot(state.container, state.rootFiber.child);
+
+    // 다음 렌더에서 비교할 기준으로 커밋된 결과 트리를 alternate로 저장한다.
+    // 즉, 다음 flush 시작 시 oldChild로는 rootFiber.alternate?.child를 사용한다.
+    state.rootFiber.alternate = {
+      ...state.rootFiber,
+      child: state.rootFiber.child,
+      alternate: null,
+      sibling: null,
+      return: null,
+      flags: NoFlags,
+      deletions: undefined,
+    };
   };
 
   return {

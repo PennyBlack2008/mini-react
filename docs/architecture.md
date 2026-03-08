@@ -45,6 +45,13 @@ mini-react는 다음 두 계층으로 나뉜다.
 
 `App 코드 -> createElement -> VNode -> createRoot.render -> scheduler/commit -> renderer-dom patching -> DOM`
 
+현재 mini-react reconcile 단계는 `reconcileChildren`에서 type/key 기반으로 이전 child 체인과 신규 children을 비교하고,
+`Update`/`Placement`/`Deletion` 플래그를 기록해 renderer-dom에 전달한다.
+`alternate`는 현재 루트에 대해 이전 렌더 트리를 보관하는 용도로 사용되어 다음 렌더 패스에서 비교 기준을 제공한다.
+`child/sibling/return`는 링크드 리스트 기반 트리를 구성하여 재귀 없이 순회 가능한 구조를 유지한다.
+리렌더 경계는 `reconcile` 단계에서 Fiber 계산만 수행하고, 실제 출력 갱신은 `commitRoot`가 `flags`와 삭제 큐를 소비해 수행한다.
+미구현/제한사항: 현재는 `key` 기반 정렬 및 이동(move) 최적화가 없고, children 문자열/숫자 입력은 TextSymbol 기반 텍스트 노드로 통일해 처리한다.
+
 ## 4) Invariants (불변식)
 
 - `render` 입력은 `VNode | null` 또는 `null`에 안전해야 하며, `container === null`이면 부수효과 없이 종료되어야 한다.
@@ -81,3 +88,6 @@ mini-react는 다음 두 계층으로 나뉜다.
 - 2026-03-06: `packages/mini-react/src/renderer-dom/index.ts`를 Fiber commit 엔트리로 확장해 HostText/HostComponent 문자열 렌더링을 지원.
 - 2026-03-06: `renderer-dom`에서 삭제 큐를 수용하는 제거 루틴을 추가하고, 다음 커밋에서 stateNode 기반 실제 노드 교체/제거로 확장 가능한 구조로 고정.
 - 2026-03-06: `packages/mini-react/__tests__/renderer-dom.test.ts`와 `core.test.ts`를 placeholder 문자열 계약에서 Fiber 기반 출력 계약으로 갱신.
+- 2026-03-09: `createRoot.flush`에서 이전 렌더 트리를 `rootFiber.alternate?.child`로 전달해 reconcile 비교 기준을 유지하도록 파이프라인 정리.
+- 2026-03-09: reconcile 경로에서 `sameType` 재사용 시 `alternate`, `pendingProps`, `Update`, 링크 초기화(`child/sibling`) 정책을 명시했고, `renderer-dom`은 commit 단계에서 `Placement/Update/Deletion` 경계 소비로 역할을 분리.
+- 2026-03-09: 키 기반 재정렬은 미구현 상태로 문서화하고, 텍스트 child 정책(`string|number`를 텍스트 fiber로 정규화)을 reconciliation 제약으로 기록.
