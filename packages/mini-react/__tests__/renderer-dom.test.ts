@@ -1,5 +1,10 @@
 import { render } from "../src/renderer-dom";
 
+type TestContainer = {
+  textContent: string;
+  childNodes?: unknown[];
+};
+
 describe("renderer-dom", () => {
   test("is a no-op when container is null", () => {
     const container = null;
@@ -9,27 +14,70 @@ describe("renderer-dom", () => {
   });
 
   test("clears container text on null vnode", () => {
-    const container = { textContent: "seed" } as unknown as HTMLElement;
+    const container = { textContent: "seed", childNodes: ["a"] } as unknown as TestContainer;
 
-    render(null, container);
+    render(null, container as unknown as HTMLElement);
 
     expect(container.textContent).toBe("");
+    expect(container.childNodes).toEqual([]);
   });
 
-  test("renders primitive as placeholder string", () => {
-    const container = { textContent: "" } as unknown as HTMLElement;
+  test("renders primitive as HostText", () => {
+    const container = { textContent: "" } as unknown as TestContainer;
 
-    render("hello", container);
+    render("hello", container as unknown as HTMLElement);
 
-    expect(container.textContent).toBe("[mini-react placeholder] hello");
+    expect(container.textContent).toBe("hello");
   });
 
-  test("renders vnode as placeholder marker", () => {
-    const container = { textContent: "" } as unknown as HTMLElement;
+  test("renders vnode as minimal host tree", () => {
+    const container = { textContent: "" } as unknown as TestContainer;
     const vnode = { type: "div", props: null, children: [], key: null };
 
-    render(vnode as unknown as Parameters<typeof render>[0], container);
+    render(vnode as unknown as Parameters<typeof render>[0], container as unknown as HTMLElement);
 
-    expect(container.textContent).toBe("[mini-react placeholder] rendered VNode");
+    expect(container.textContent).toBe("<div></div>");
+  });
+
+  test("renders nested vnode and text as html-like output", () => {
+    const container = { textContent: "", childNodes: [] } as unknown as TestContainer;
+
+    render(
+      {
+        type: "div",
+        props: null,
+        children: ["hello", { type: "span", props: null, children: ["world"], key: null }],
+      } as Parameters<typeof render>[0],
+      container as unknown as HTMLElement,
+    );
+
+    expect(container.textContent).toBe("<div>hello<span>world</span></div>");
+    expect(container.childNodes?.length).toBeGreaterThan(0);
+  });
+
+  test("updates child list and removes old nodes by replacement", () => {
+    const container = { textContent: "", childNodes: [] } as unknown as TestContainer;
+
+    render(
+      {
+        type: "div",
+        props: null,
+        children: ["first", "second"],
+      } as Parameters<typeof render>[0],
+      container as unknown as HTMLElement,
+    );
+
+    expect(container.textContent).toBe("<div>firstsecond</div>");
+
+    render(
+      {
+        type: "div",
+        props: null,
+        children: ["only"],
+      } as Parameters<typeof render>[0],
+      container as unknown as HTMLElement,
+    );
+
+    expect(container.textContent).toBe("<div>only</div>");
   });
 });
