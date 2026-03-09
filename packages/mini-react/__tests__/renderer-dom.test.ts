@@ -55,6 +55,53 @@ describe("renderer-dom", () => {
     expect(container.childNodes?.length).toBeGreaterThan(0);
   });
 
+  test("smoke: public render renders a single div", () => {
+    const container = { textContent: "" } as unknown as TestContainer;
+    const vnode = { type: "div", props: null, children: [], key: null };
+
+    render(vnode as Parameters<typeof render>[0], container as unknown as HTMLElement);
+
+    expect(container.textContent).toBe("<div></div>");
+  });
+
+  test("smoke: public render renders nested elements", () => {
+    const container = { textContent: "" } as unknown as TestContainer;
+
+    render(
+      {
+        type: "div",
+        props: null,
+        children: [
+          {
+            type: "section",
+            props: null,
+            children: [
+              {
+                type: "span",
+                props: null,
+                children: ["world"],
+                key: null,
+              },
+            ],
+            key: null,
+          },
+        ],
+        key: null,
+      } as Parameters<typeof render>[0],
+      container as unknown as HTMLElement,
+    );
+
+    expect(container.textContent).toBe("<div><section><span>world</span></section></div>");
+  });
+
+  test("smoke: public render renders text child", () => {
+    const container = { textContent: "" } as unknown as TestContainer;
+
+    render("hello world", container as unknown as HTMLElement);
+
+    expect(container.textContent).toBe("hello world");
+  });
+
   test("updates child list and removes old nodes by replacement", () => {
     const container = { textContent: "", childNodes: [] } as unknown as TestContainer;
 

@@ -1,10 +1,12 @@
 import {
   Deletion,
   Fiber,
+  NoFlags,
   Placement,
   TextSymbol,
   Update,
 } from "../core/fiber";
+import { performWorkLoop } from "../core/reconcile";
 import { type VNode, Fragment } from "../shared";
 
 export type RenderInput =
@@ -389,5 +391,19 @@ export function render(
   element: RenderInput,
   container: HTMLElement | null,
 ): void {
-  commitRoot(container, element);
+  const rootFiber: Fiber = {
+    type: "ROOT",
+    key: null,
+    pendingProps: { children: [element] },
+    memoizedProps: null,
+    stateNode: container,
+    return: null,
+    child: null,
+    sibling: null,
+    alternate: null,
+    flags: NoFlags,
+  };
+
+  performWorkLoop(rootFiber);
+  commitRoot(container, rootFiber.child);
 }
