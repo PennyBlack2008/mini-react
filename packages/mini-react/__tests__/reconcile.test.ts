@@ -164,6 +164,63 @@ describe("reconcileChildren", () => {
 });
 
 describe("performUnitOfWork", () => {
+  test("calls reconcileChildren in beginWork for host component", () => {
+    const hostRoot = makeFiber({
+      type: "div",
+      pendingProps: {
+        children: ["hello", { type: "span", props: { id: "child" }, children: [] }],
+      },
+    });
+
+    const next = performUnitOfWork(hostRoot);
+
+    expect(next).toBe(hostRoot.child);
+    expect(next?.type).toBe(TextSymbol);
+    expect(next?.pendingProps?.nodeValue).toBe("hello");
+    expect(hostRoot.child?.sibling?.type).toBe("span");
+  });
+
+  test("passes fiber.alternate.child as currentFirstChild when reconciling host component", () => {
+    const oldChild = makeFiber({
+      type: "span",
+      key: "same-key",
+      pendingProps: { id: "old" },
+    });
+    const hostRoot = makeFiber({
+      type: "div",
+      pendingProps: {
+        children: [{ type: "span", key: "same-key", props: { id: "new" }, children: [] }],
+      },
+      alternate: makeFiber({ type: "div", child: oldChild }),
+    });
+
+    const next = performUnitOfWork(hostRoot);
+
+    expect(next).toBe(hostRoot.child);
+    expect(hostRoot.child?.alternate).toBe(oldChild);
+    expect(hostRoot.child?.flags).toBe(Update);
+  });
+
+  test("works safely when host component has no children", () => {
+    const oldChild = makeFiber({
+      type: "span",
+      pendingProps: { id: "to-delete" },
+    });
+    const hostRoot = makeFiber({
+      type: "div",
+      pendingProps: {
+        children: [],
+      },
+      alternate: makeFiber({ type: "div", child: oldChild }),
+    });
+
+    const next = performUnitOfWork(hostRoot);
+
+    expect(next).toBeNull();
+    expect(hostRoot.child).toBeNull();
+    expect(hostRoot.deletions).toEqual([oldChild]);
+  });
+
   test("returns child when beginWork creates a child", () => {
     const root = makeFiber({
       type: "root",

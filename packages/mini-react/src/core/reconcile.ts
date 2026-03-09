@@ -94,12 +94,54 @@ function sameType(oldFiber: Fiber | null, element: any) {
   return oldFiber.type === element.type && oldFiber.key === nextKey;
 }
 
+function isHostComponent(fiber: Fiber): boolean {
+  return typeof fiber.type === "string" || fiber.type === TextSymbol;
+}
+
 function getNextChildrenFromElement(element: any): any[] {
   if (!element || !Array.isArray(element.children)) {
     return [];
   }
 
   return element.children;
+}
+
+function shouldNormalizeChildren(children: any[]): boolean {
+  return children.some(
+    (child) =>
+      child === null ||
+      child === undefined ||
+      typeof child === "boolean" ||
+      typeof child === "string" ||
+      typeof child === "number" ||
+      Array.isArray(child),
+  );
+}
+
+function normalizeChildrenIfNeeded(rawChildren: any): any[] {
+  const children = Array.isArray(rawChildren)
+    ? rawChildren
+    : rawChildren == null
+      ? []
+      : [rawChildren];
+  return shouldNormalizeChildren(children)
+    ? normalizeChildren(children)
+    : children;
+}
+
+function updateHostComponent(fiber: Fiber): Fiber | null {
+  const pending = fiber.pendingProps as PendingProps | null;
+  const nextChildren = normalizeChildrenIfNeeded(pending?.children ?? []);
+  const currentFirstChild = fiber.alternate?.child ?? null;
+
+  // Host 노드의 경우 reconcileChildren을 통해 현재 children을 재구성한다.
+  reconcileChildren(
+    fiber,
+    currentFirstChild,
+    nextChildren,
+  );
+
+  return fiber.child;
 }
 
 // reconcile 진입 전에 children를 렌더 패스가 다루기 쉬운 형태로 정규화한다.
@@ -138,14 +180,12 @@ function normalizeChildren(children: any[]): any[] {
 }
 
 function beginWork(fiber: Fiber): Fiber | null {
-  // 현재 minimal reconciler에서는 begin 단계에서 children 재조정만 수행한다.
-  // 다음 렌더 패스에서 비교할 입력은 fiber.pendingProps로 전달된다.
-  const pending = fiber.pendingProps as PendingProps | null;
-  const nextChildren = pending?.children ?? [];
-  const currentFirstChild = fiber.alternate?.child ?? null;
+  // 현재 minimal reconciler의 begin 단계는 host component에 대해서만 렌더 준비를 수행한다.
+  // function component는 다음 단계에서 본격 처리할 예정이므로 placeholder로 둔다.
+  if (isHostComponent(fiber)) {
+    updateHostComponent(fiber);
+  }
 
-  // DFS 순회에서 begin 단계의 부수 효과는 다음 단계로 내려갈 child 생성이다.
-  reconcileChildren(fiber, currentFirstChild, nextChildren);
   (fiber as any).__beginWork = true;
 
   return fiber.child;
