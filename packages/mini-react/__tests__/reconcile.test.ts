@@ -1,3 +1,6 @@
+/**
+ * @jest-environment jsdom
+ */
 import {
   Deletion,
   NoFlags,
@@ -308,5 +311,51 @@ describe("performUnitOfWork", () => {
     expect((returnFiber as any).__completeWork).toBe(true);
     expect((grandReturn as any).__completeWork).toBe(true);
     expect((grandReturn.sibling as any).__beginWork).toBeUndefined();
+  });
+});
+
+describe("completeWork", () => {
+  test("creates host element DOM when completing a host fiber", () => {
+    const hostFiber = makeFiber({
+      type: "section",
+      pendingProps: {
+        children: [],
+      },
+    });
+
+    performUnitOfWork(hostFiber);
+
+    expect(hostFiber.stateNode).toBeInstanceOf(HTMLElement);
+    expect((hostFiber.stateNode as HTMLElement).tagName).toBe("SECTION");
+  });
+
+  test("creates text node for text fiber", () => {
+    const textFiber = makeFiber({
+      type: TextSymbol,
+      pendingProps: {
+        nodeValue: "hello",
+      },
+    });
+
+    performUnitOfWork(textFiber);
+
+    expect(textFiber.stateNode).toBeInstanceOf(Text);
+    expect((textFiber.stateNode as Text).textContent).toBe("hello");
+  });
+
+  test("does not recreate DOM when fiber already has stateNode", () => {
+    const existing = document.createElement("div");
+    const hostFiber = makeFiber({
+      type: "div",
+      pendingProps: {
+        children: [],
+      },
+      stateNode: existing,
+    });
+
+    performUnitOfWork(hostFiber);
+
+    expect(hostFiber.stateNode).toBe(existing);
+    expect((hostFiber.stateNode as Element).tagName).toBe("DIV");
   });
 });

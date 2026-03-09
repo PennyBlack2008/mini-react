@@ -192,7 +192,16 @@ function beginWork(fiber: Fiber): Fiber | null {
 }
 
 function completeWork(fiber: Fiber): void {
-  // 현재 단계에서는 commit 없이 memoizedProps 동기화만 수행하는 placeholder.
+  if (typeof fiber.type === "string" && fiber.stateNode == null) {
+    fiber.stateNode = document.createElement(fiber.type);
+  }
+
+  if (fiber.type === TextSymbol && fiber.stateNode == null) {
+    const nodeValue = fiber.pendingProps?.nodeValue ?? "";
+    fiber.stateNode = document.createTextNode(String(nodeValue));
+  }
+
+  // 최소 reconciler에서는 complete 단계에서 DOM 생성 후 memoizedProps 동기화를 수행한다.
   fiber.memoizedProps = fiber.pendingProps;
   (fiber as any).__completeWork = true;
 }
