@@ -8,6 +8,7 @@ import {
 } from "../src/core/fiber";
 import {
   commitRoot,
+  performWorkLoop,
   performUnitOfWork,
   reconcileChildren,
 } from "../src/core/reconcile";
@@ -328,6 +329,75 @@ describe("completeWork", () => {
 
     expect(hostFiber.stateNode).toBeDefined();
     expect((hostFiber.stateNode as { tagName: string }).tagName).toBe("SECTION");
+  });
+
+  test("applies mount-time host props to created host stateNode", () => {
+    const hostFiber = makeFiber({
+      type: "div",
+      pendingProps: {
+        id: "root",
+        className: "hero",
+        title: "greeting",
+        "data-index": 7,
+        "aria-label": "app",
+      },
+    });
+
+    performUnitOfWork(hostFiber);
+
+    expect((hostFiber.stateNode as Record<string, unknown>).id).toBe("root");
+    expect((hostFiber.stateNode as Record<string, unknown>).className).toBe("hero");
+    expect((hostFiber.stateNode as Record<string, unknown>).title).toBe("greeting");
+    expect((hostFiber.stateNode as Record<string, unknown>)["data-index"]).toBe("7");
+    expect((hostFiber.stateNode as Record<string, unknown>)["aria-label"]).toBe("app");
+  });
+
+  test("does not apply internal props such as children and key to host stateNode", () => {
+    const hostFiber = makeFiber({
+      type: "div",
+      pendingProps: {
+        children: "should-ignore",
+        key: "ignored",
+        id: "id",
+      },
+    });
+
+    performWorkLoop(hostFiber);
+
+    const stateNode = hostFiber.stateNode as Record<string, unknown>;
+    expect(stateNode).toBeDefined();
+    expect(stateNode.id).toBe("id");
+
+    if (typeof (stateNode as { getAttribute?: (name: string) => string | null })
+      .getAttribute === "function") {
+      expect((stateNode as { getAttribute: (name: string) => string | null }).getAttribute("children")).toBeNull();
+      expect((stateNode as { getAttribute: (name: string) => string | null }).getAttribute("key")).toBeNull();
+      expect((stateNode as { getAttribute: (name: string) => string | null }).getAttribute("id")).toBe("id");
+    } else {
+      expect(stateNode.children).not.toBe("should-ignore");
+      expect(stateNode.key).toBeUndefined();
+    }
+  });
+
+  test("safely ignores null/undefined host props", () => {
+    const hostFiber = makeFiber({
+      type: "section",
+      pendingProps: {
+        id: null,
+        title: undefined,
+        className: "valid",
+        disabled: undefined,
+        "data-value": 0,
+      },
+    });
+
+    expect(() => performUnitOfWork(hostFiber)).not.toThrow();
+
+    expect((hostFiber.stateNode as Record<string, unknown>).className).toBe("valid");
+    expect((hostFiber.stateNode as Record<string, unknown>)["data-value"]).toBe("0");
+    expect((hostFiber.stateNode as Record<string, unknown>).id).toBeUndefined();
+    expect((hostFiber.stateNode as Record<string, unknown>).title).toBeUndefined();
+    expect((hostFiber.stateNode as Record<string, unknown>).disabled).toBeUndefined();
   });
 
   test("creates text node for text fiber", () => {

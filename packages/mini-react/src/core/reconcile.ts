@@ -59,6 +59,54 @@ type PendingProps = {
 
 let nextUnitOfWork: Fiber | null = null;
 
+function isRenderableHostProp(
+  key: string,
+  value: unknown,
+): boolean {
+  if (key === "children" || key === "key") {
+    return false;
+  }
+
+  if (value == null) {
+    return false;
+  }
+
+  if (key === "id" || key === "className" || key === "title") {
+    return true;
+  }
+
+  return typeof value === "string" || typeof value === "number";
+}
+
+function applyHostProps(node: any, props: Record<string, unknown> | null): void {
+  if (props == null) {
+    return;
+  }
+
+  for (const [key, value] of Object.entries(props)) {
+    if (!isRenderableHostProp(key, value)) {
+      continue;
+    }
+
+    const normalized = String(value);
+
+    if (key === "className") {
+      if (typeof node.setAttribute === "function") {
+        node.setAttribute("class", normalized);
+      } else {
+        node.className = normalized;
+      }
+      continue;
+    }
+
+    if (typeof node.setAttribute === "function") {
+      node.setAttribute(key, normalized);
+    } else {
+      node[key] = normalized;
+    }
+  }
+}
+
 // VNode 하나를 fiber로 변환한다.
 // type/key는 식별용, pendingProps는 다음 렌더 단계에서 비교할 입력으로 사용한다.
 export function createFiberFromElement(element: any): Fiber {
@@ -208,12 +256,21 @@ function completeWork(fiber: Fiber): void {
   if (typeof fiber.type === "string" && fiber.stateNode == null) {
     if (hasDocument) {
       fiber.stateNode = document.createElement(fiber.type);
+      applyHostProps(fiber.stateNode, fiber.pendingProps as Record<string, unknown> | null);
       fiber.memoizedProps = fiber.pendingProps;
       (fiber as any).__completeWork = true;
       return;
     }
 
-    fiber.stateNode = {
+    const stateNode: {
+      type: string;
+      tagName: string;
+      nodeName: string;
+      childNodes: any[];
+      appendChild(child: any): void;
+      children: any[];
+      [key: string]: any;
+    } = {
       type: fiber.type,
       tagName: fiber.type.toUpperCase(),
       nodeName: fiber.type.toUpperCase(),
@@ -223,6 +280,9 @@ function completeWork(fiber: Fiber): void {
       },
       children: [],
     };
+
+    applyHostProps(stateNode, fiber.pendingProps as Record<string, unknown> | null);
+    fiber.stateNode = stateNode;
   }
 
   if (fiber.type === TextSymbol && fiber.stateNode == null) {
