@@ -1,5 +1,5 @@
 import { commitRoot } from "../renderer-dom";
-import { reconcileChildren } from "./reconcile";
+import { performWorkLoop } from "./reconcile";
 import { type Fiber, NoFlags } from "./fiber";
 
 export interface Root {
@@ -41,11 +41,9 @@ export function createRoot(container: HTMLElement | null): Root {
       return;
     }
 
-    // 현재 단계: root 쪽의 단일 child를 reconcile하고, 렌더러는 재조정 결과의 시작점으로 commit한다.
-    // 이전 렌더 트리는 rootFiber.alternate?.child로 전달한다.
-    const currentFirstChild = state.rootFiber.alternate?.child ?? null;
     const pendingChildren = state.pending == null ? [] : [state.pending];
-    reconcileChildren(state.rootFiber, currentFirstChild, pendingChildren);
+    state.rootFiber.pendingProps = { children: pendingChildren };
+    performWorkLoop(state.rootFiber);
 
     // 최종 commit은 Fiber 트리를 직접 consume.
     commitRoot(state.container, state.rootFiber.child);

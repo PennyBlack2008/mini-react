@@ -53,13 +53,23 @@
 
 import { Fiber, Placement, TextSymbol, Update } from "./fiber";
 
+type PendingProps = {
+  children?: any[];
+};
+
+let nextUnitOfWork: Fiber | null = null;
+
 // VNode 하나를 fiber로 변환한다.
 // type/key는 식별용, pendingProps는 다음 렌더 단계에서 비교할 입력으로 사용한다.
 export function createFiberFromElement(element: any): Fiber {
+  const rawChildren = Array.isArray(element.children) ? element.children : [];
   const root: Fiber = {
     type: element.type,
     key: element.key == null ? null : String(element.key),
-    pendingProps: element.props,
+    pendingProps: {
+      ...(element.props ?? {}),
+      children: rawChildren,
+    },
     memoizedProps: null,
     stateNode: null,
 
@@ -70,11 +80,6 @@ export function createFiberFromElement(element: any): Fiber {
     alternate: null,
     flags: Placement,
   };
-
-  const rawChildren = Array.isArray(element.children) ? element.children : [];
-  if (rawChildren.length > 0) {
-    reconcileChildren(root, null, rawChildren);
-  }
 
   return root;
 }
@@ -130,6 +135,61 @@ function normalizeChildren(children: any[]): any[] {
   }
 
   return normalizedChildren;
+}
+
+function beginWork(fiber: Fiber): Fiber | null {
+  // 현재 minimal reconciler에서는 begin 단계에서 children 재조정만 수행한다.
+  // 다음 렌더 패스에서 비교할 입력은 fiber.pendingProps로 전달된다.
+  const pending = fiber.pendingProps as PendingProps | null;
+  const nextChildren = pending?.children ?? [];
+  const currentFirstChild = fiber.alternate?.child ?? null;
+
+  // DFS 순회에서 begin 단계의 부수 효과는 다음 단계로 내려갈 child 생성이다.
+  reconcileChildren(fiber, currentFirstChild, nextChildren);
+  (fiber as any).__beginWork = true;
+
+  return fiber.child;
+}
+
+function completeWork(fiber: Fiber): void {
+  // 현재 단계에서는 commit 없이 memoizedProps 동기화만 수행하는 placeholder.
+  fiber.memoizedProps = fiber.pendingProps;
+  (fiber as any).__completeWork = true;
+}
+
+export function performUnitOfWork(fiber: Fiber): Fiber | null {
+  const next = beginWork(fiber);
+
+  if (next != null) {
+    return next;
+  }
+
+  completeWork(fiber);
+
+  if (fiber.sibling != null) {
+    return fiber.sibling;
+  }
+
+  let parent = fiber.return;
+  while (parent != null) {
+    completeWork(parent);
+
+    if (parent.sibling != null) {
+      return parent.sibling;
+    }
+
+    parent = parent.return;
+  }
+
+  return null;
+}
+
+export function performWorkLoop(rootFiber: Fiber): void {
+  nextUnitOfWork = rootFiber;
+
+  while (nextUnitOfWork != null) {
+    nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+  }
 }
 
 export function reconcileChildren(

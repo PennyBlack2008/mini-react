@@ -6,7 +6,7 @@ import {
   Update,
   type Fiber,
 } from "../src/core/fiber";
-import { reconcileChildren } from "../src/core/reconcile";
+import { performUnitOfWork, reconcileChildren } from "../src/core/reconcile";
 
 function makeFiber(overrides: Partial<Fiber> = {}): Fiber {
   return {
@@ -160,5 +160,96 @@ describe("reconcileChildren", () => {
     expect(Deletion).toBe(4);
     expect(root.deletions).toEqual([oldFirst]);
     expect(root.child).toBeNull();
+  });
+});
+
+describe("performUnitOfWork", () => {
+  test("returns child when beginWork creates a child", () => {
+    const root = makeFiber({
+      type: "root",
+      pendingProps: {
+        children: [
+          {
+            type: "div",
+            props: { id: "child" },
+            children: [],
+          },
+        ],
+      },
+    });
+
+    const next = performUnitOfWork(root);
+
+    expect(next).toBe(root.child);
+    expect(next?.type).toBe("div");
+    expect((root as any).__beginWork).toBe(true);
+    expect((root as any).__completeWork).toBeUndefined();
+  });
+
+  test("moves to sibling when current fiber has no child but has sibling", () => {
+    const current = makeFiber({
+      type: "current",
+      pendingProps: {
+        children: [],
+      },
+      sibling: makeFiber({
+        type: "sibling",
+        pendingProps: {
+          children: [],
+        },
+      }),
+    });
+
+    const next = performUnitOfWork(current);
+
+    expect(next).toBe(current.sibling);
+    expect(next?.type).toBe("sibling");
+    expect((current as any).__completeWork).toBe(true);
+    expect((current.sibling as any).__beginWork).toBeUndefined();
+  });
+
+  test("walks up return chain when no child/sibling and finds next sibling", () => {
+    const returnSibling = makeFiber({
+      type: "returnSibling",
+      pendingProps: {
+        children: [],
+      },
+    });
+
+    const returnFiber = makeFiber({
+      type: "parent",
+      pendingProps: {
+        children: [],
+      },
+      sibling: null,
+    });
+
+    const grandReturn = makeFiber({
+      type: "grand",
+      pendingProps: {
+        children: [],
+      },
+      child: returnFiber,
+      sibling: returnSibling,
+    });
+
+    const leaf = makeFiber({
+      type: "leaf",
+      pendingProps: {
+        children: [],
+      },
+      return: returnFiber,
+    });
+    returnFiber.return = grandReturn;
+    returnFiber.child = leaf;
+
+    const next = performUnitOfWork(leaf);
+
+    expect(next).toBe(grandReturn.sibling);
+    expect(next).toBe(returnSibling);
+    expect((leaf as any).__completeWork).toBe(true);
+    expect((returnFiber as any).__completeWork).toBe(true);
+    expect((grandReturn as any).__completeWork).toBe(true);
+    expect((grandReturn.sibling as any).__beginWork).toBeUndefined();
   });
 });
