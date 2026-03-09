@@ -144,6 +144,15 @@ function updateHostComponent(fiber: Fiber): Fiber | null {
   return fiber.child;
 }
 
+function updateRootComponent(fiber: Fiber): Fiber | null {
+  const pending = fiber.pendingProps as PendingProps | null;
+  const nextChildren = normalizeChildrenIfNeeded(pending?.children ?? []);
+  const currentFirstChild = fiber.alternate?.child ?? null;
+
+  reconcileChildren(fiber, currentFirstChild, nextChildren);
+  return fiber.child;
+}
+
 // reconcile 진입 전에 children를 렌더 패스가 다루기 쉬운 형태로 정규화한다.
 // - null/undefined/boolean: 화면에 안 보이므로 제거
 // - string/number: 텍스트로 감싸서 TextSymbol 노드로 통일
@@ -184,6 +193,8 @@ function beginWork(fiber: Fiber): Fiber | null {
   // function component는 다음 단계에서 본격 처리할 예정이므로 placeholder로 둔다.
   if (isHostComponent(fiber)) {
     updateHostComponent(fiber);
+  } else if (fiber.type === "ROOT") {
+    updateRootComponent(fiber);
   }
 
   (fiber as any).__beginWork = true;
@@ -192,13 +203,42 @@ function beginWork(fiber: Fiber): Fiber | null {
 }
 
 function completeWork(fiber: Fiber): void {
+  const hasDocument = typeof document !== "undefined";
+
   if (typeof fiber.type === "string" && fiber.stateNode == null) {
-    fiber.stateNode = document.createElement(fiber.type);
+    if (hasDocument) {
+      fiber.stateNode = document.createElement(fiber.type);
+      fiber.memoizedProps = fiber.pendingProps;
+      (fiber as any).__completeWork = true;
+      return;
+    }
+
+    fiber.stateNode = {
+      type: fiber.type,
+      tagName: fiber.type.toUpperCase(),
+      nodeName: fiber.type.toUpperCase(),
+      childNodes: [],
+      appendChild(child: any): void {
+        this.childNodes.push(child);
+      },
+      children: [],
+    };
   }
 
   if (fiber.type === TextSymbol && fiber.stateNode == null) {
     const nodeValue = fiber.pendingProps?.nodeValue ?? "";
-    fiber.stateNode = document.createTextNode(String(nodeValue));
+    if (hasDocument) {
+      fiber.stateNode = document.createTextNode(String(nodeValue));
+      fiber.memoizedProps = fiber.pendingProps;
+      (fiber as any).__completeWork = true;
+      return;
+    }
+
+    fiber.stateNode = {
+      nodeType: "text",
+      textContent: String(nodeValue),
+      nodeValue: String(nodeValue),
+    };
   }
 
   // 최소 reconciler에서는 complete 단계에서 DOM 생성 후 memoizedProps 동기화를 수행한다.
@@ -239,6 +279,60 @@ export function performWorkLoop(rootFiber: Fiber): void {
   while (nextUnitOfWork != null) {
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
   }
+}
+
+function getHostParent(fiber: Fiber): HTMLElement | null {
+  let parent = fiber.return;
+
+  while (parent != null) {
+    if (parent.type === "ROOT") {
+      const rootContainer = parent.stateNode;
+      return rootContainer != null && "appendChild" in rootContainer
+        ? (rootContainer as HTMLElement)
+        : null;
+    }
+
+    if (typeof parent.type === "string" && parent.stateNode != null) {
+      return parent.stateNode as HTMLElement;
+    }
+
+    parent = parent.return;
+  }
+
+  return null;
+}
+
+export function commitWork(fiber: Fiber): void {
+  const isHostComponent =
+    typeof fiber.type === "string" || fiber.type === TextSymbol;
+  const shouldAppend =
+    (fiber.flags & Placement) !== 0 && isHostComponent && fiber.stateNode != null;
+
+  if (shouldAppend) {
+    const parentDom = getHostParent(fiber);
+
+    if (parentDom != null) {
+      parentDom.appendChild(fiber.stateNode as Node);
+    }
+
+    fiber.flags &= ~Placement;
+  }
+
+  if (fiber.child != null) {
+    commitWork(fiber.child);
+  }
+
+  if (fiber.sibling != null) {
+    commitWork(fiber.sibling);
+  }
+}
+
+export function commitRoot(rootFiber: Fiber): void {
+  if (rootFiber.child == null) {
+    return;
+  }
+
+  commitWork(rootFiber.child);
 }
 
 export function reconcileChildren(

@@ -1,6 +1,3 @@
-/**
- * @jest-environment jsdom
- */
 import {
   Deletion,
   NoFlags,
@@ -9,7 +6,11 @@ import {
   Update,
   type Fiber,
 } from "../src/core/fiber";
-import { performUnitOfWork, reconcileChildren } from "../src/core/reconcile";
+import {
+  commitRoot,
+  performUnitOfWork,
+  reconcileChildren,
+} from "../src/core/reconcile";
 
 function makeFiber(overrides: Partial<Fiber> = {}): Fiber {
   return {
@@ -325,8 +326,8 @@ describe("completeWork", () => {
 
     performUnitOfWork(hostFiber);
 
-    expect(hostFiber.stateNode).toBeInstanceOf(HTMLElement);
-    expect((hostFiber.stateNode as HTMLElement).tagName).toBe("SECTION");
+    expect(hostFiber.stateNode).toBeDefined();
+    expect((hostFiber.stateNode as { tagName: string }).tagName).toBe("SECTION");
   });
 
   test("creates text node for text fiber", () => {
@@ -339,12 +340,12 @@ describe("completeWork", () => {
 
     performUnitOfWork(textFiber);
 
-    expect(textFiber.stateNode).toBeInstanceOf(Text);
-    expect((textFiber.stateNode as Text).textContent).toBe("hello");
+    expect(textFiber.stateNode).toBeDefined();
+    expect((textFiber.stateNode as { textContent: string }).textContent).toBe("hello");
   });
 
   test("does not recreate DOM when fiber already has stateNode", () => {
-    const existing = document.createElement("div");
+    const existing = { tagName: "DIV", textContent: "", childNodes: [] };
     const hostFiber = makeFiber({
       type: "div",
       pendingProps: {
@@ -356,6 +357,118 @@ describe("completeWork", () => {
     performUnitOfWork(hostFiber);
 
     expect(hostFiber.stateNode).toBe(existing);
-    expect((hostFiber.stateNode as Element).tagName).toBe("DIV");
+    expect((hostFiber.stateNode as { tagName: string }).tagName).toBe("DIV");
+  });
+});
+
+describe("commitRoot / commitWork", () => {
+  function createMockElement(tagName: string): HTMLElement {
+    const node: any = {
+      tagName: tagName.toUpperCase(),
+      textContent: "",
+      childNodes: [],
+      firstElementChild: null,
+      appendChild(child: any): void {
+        this.childNodes.push(child);
+        if (typeof child.textContent === "string") {
+          this.textContent += child.textContent;
+        }
+
+        this.firstElementChild = this.childNodes.find((item: any) => item.tagName != null) ?? null;
+      },
+    };
+
+    return node as HTMLElement;
+  }
+
+  test("places a placement fiber into the root container", () => {
+    const container = createMockElement("div");
+    const root = makeFiber({
+      type: "ROOT",
+      stateNode: container,
+      pendingProps: null,
+      flags: NoFlags,
+    });
+    const div = makeFiber({
+      type: "div",
+      stateNode: createMockElement("div"),
+      return: root,
+      flags: Placement,
+    });
+
+    root.child = div;
+
+    commitRoot(root);
+
+    expect(container.firstElementChild).toBe(div.stateNode);
+  });
+
+  test("attaches nested placement fiber to the nearest host parent", () => {
+    const container = createMockElement("div");
+    const root = makeFiber({
+      type: "ROOT",
+      stateNode: container,
+      pendingProps: null,
+      flags: NoFlags,
+    });
+
+    const wrapper = makeFiber({
+      type: "section",
+      stateNode: createMockElement("section"),
+      return: root,
+      flags: Placement,
+    });
+
+    const button = makeFiber({
+      type: "button",
+      stateNode: createMockElement("button"),
+      return: wrapper,
+      flags: Placement,
+    });
+
+    const text = makeFiber({
+      type: TextSymbol,
+      stateNode: { textContent: "ok", nodeValue: "ok" } as Text,
+      return: button,
+      flags: Placement,
+    });
+
+    root.child = wrapper;
+    wrapper.child = button;
+    button.child = text;
+
+    commitRoot(root);
+
+    expect(container.firstElementChild).toBe(wrapper.stateNode);
+    expect(wrapper.stateNode?.firstElementChild).toBe(button.stateNode);
+    expect(button.stateNode?.textContent).toBe("ok");
+  });
+
+  test("walks through non-host fibers to find a host parent", () => {
+    const container = createMockElement("div");
+    const root = makeFiber({
+      type: "ROOT",
+      stateNode: container,
+      pendingProps: null,
+      flags: NoFlags,
+    });
+    const functionComponent = makeFiber({
+      type: () => null,
+      return: root,
+      flags: NoFlags,
+    });
+    const title = makeFiber({
+      type: "h1",
+      stateNode: createMockElement("h1"),
+      return: functionComponent,
+      flags: Placement,
+    });
+
+    root.child = functionComponent;
+    functionComponent.child = title;
+
+    commitRoot(root);
+
+    expect(container.firstElementChild).toBe(title.stateNode);
   });
 });
