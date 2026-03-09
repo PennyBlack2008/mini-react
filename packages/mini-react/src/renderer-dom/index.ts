@@ -223,12 +223,25 @@ function toNode(fiber: Fiber): MiniNode {
   };
 }
 
+function isFunctionComponent(fiber: Fiber): boolean {
+  return typeof fiber.type === "function";
+}
+
 // 한 형제 체인 시작점에서 자식 트리를 MiniNode 배열로 빌드한다.
 function buildDomTree(fiber: Fiber | null, parent: Fiber | null): MiniNode[] {
   const nodes: MiniNode[] = [];
   let next: Fiber | null = fiber;
 
   while (next) {
+    if (isFunctionComponent(next)) {
+      if (next.child != null) {
+        nodes.push(...buildDomTree(next.child, parent));
+      }
+
+      next = next.sibling;
+      continue;
+    }
+
     const node = toNode(next);
 
     node.parent = parent && parent.stateNode;

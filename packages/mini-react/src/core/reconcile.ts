@@ -52,6 +52,7 @@
  */
 
 import { Fiber, Placement, TextSymbol, Update } from "./fiber";
+import { finishHookContext, prepareHookContext } from "../hooks";
 
 type PendingProps = {
   children?: any[];
@@ -148,7 +149,15 @@ function isHostComponent(fiber: Fiber): boolean {
 
 function updateFunctionComponent(fiber: Fiber): Fiber | null {
   const component = fiber.type as (props: any) => any;
-  const child = component(fiber.pendingProps);
+  prepareHookContext(fiber);
+
+  let child: any;
+  try {
+    child = component(fiber.pendingProps);
+  } finally {
+    finishHookContext();
+  }
+
   const nextChildren = normalizeChildrenIfNeeded(child);
   const currentFirstChild = fiber.alternate?.child ?? null;
 
@@ -514,9 +523,14 @@ export function reconcileChildren(
       // 재사용 시 이전 상태와 링크를 분리 정리한다.
       // child/sibling를 null로 리셋하지 않으면 이전 하위 트리 링크가 새 트리에 섞일 수 있다.
       // 동일 fiber로 판단되면 교체/삽입이 아닌 갱신(Update)로 표기한다.
+      const nextPendingProps = {
+        ...(element?.props ?? {}),
+        children: Array.isArray((element as any)?.children) ? (element as any).children : [],
+      };
+
       newFiber = {
         ...oldFiber!,
-        pendingProps: element.props,
+        pendingProps: nextPendingProps,
         alternate: oldFiber,
         flags: Update,
         child: null,

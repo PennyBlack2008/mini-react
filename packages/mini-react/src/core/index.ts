@@ -1,6 +1,7 @@
 import { commitRoot } from "../renderer-dom";
 import { performWorkLoop } from "./reconcile";
 import { type Fiber, NoFlags } from "./fiber";
+import { registerRootUpdateSchedule, unregisterRootUpdateSchedule } from "../hooks";
 
 export interface Root {
   render(element: unknown): void;
@@ -61,6 +62,15 @@ export function createRoot(container: HTMLElement | null): Root {
     };
   };
 
+  registerRootUpdateSchedule(rootFiber, () => {
+    if (state.scheduled || !state.mounted || state.container == null) {
+      return;
+    }
+
+    state.scheduled = true;
+    queueMicrotask(flush);
+  });
+
   return {
     render(element: unknown): void {
       state.pending = element;
@@ -90,6 +100,7 @@ export function createRoot(container: HTMLElement | null): Root {
       }
 
       state.mounted = false;
+      unregisterRootUpdateSchedule(rootFiber);
     }
   };
 }

@@ -5,6 +5,8 @@ export type Fiber = {
   pendingProps: any;
   // 마지막 커밋/비교가 끝난 뒤 반영된 값. 지금은 최소구현이라 null로 시작해 단계적으로 채운다.
   memoizedProps: any;
+  // 함수 컴포넌트 훅의 최소 상태 저장용.
+  memoizedState?: unknown;
 
   stateNode: any;
 
