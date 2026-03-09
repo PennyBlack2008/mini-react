@@ -146,6 +146,16 @@ function isHostComponent(fiber: Fiber): boolean {
   return typeof fiber.type === "string" || fiber.type === TextSymbol;
 }
 
+function updateFunctionComponent(fiber: Fiber): Fiber | null {
+  const component = fiber.type as (props: any) => any;
+  const child = component(fiber.pendingProps);
+  const nextChildren = normalizeChildrenIfNeeded(child);
+  const currentFirstChild = fiber.alternate?.child ?? null;
+
+  reconcileChildren(fiber, currentFirstChild, nextChildren);
+  return fiber.child;
+}
+
 function getNextChildrenFromElement(element: any): any[] {
   if (!element || !Array.isArray(element.children)) {
     return [];
@@ -237,10 +247,10 @@ function normalizeChildren(children: any[]): any[] {
 }
 
 function beginWork(fiber: Fiber): Fiber | null {
-  // 현재 minimal reconciler의 begin 단계는 host component에 대해서만 렌더 준비를 수행한다.
-  // function component는 다음 단계에서 본격 처리할 예정이므로 placeholder로 둔다.
   if (isHostComponent(fiber)) {
     updateHostComponent(fiber);
+  } else if (typeof fiber.type === "function") {
+    updateFunctionComponent(fiber);
   } else if (fiber.type === "ROOT") {
     updateRootComponent(fiber);
   }

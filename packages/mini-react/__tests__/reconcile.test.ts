@@ -747,4 +747,92 @@ describe("commitRoot / commitWork", () => {
 
     expect(container.childNodes).toHaveLength(0);
   });
+
+  test("renders host element returned by function component", () => {
+    const container = createMockElement("div");
+    const FunctionComponent = () => ({
+      type: "section",
+      props: { id: "from-fn" },
+      children: [],
+    });
+
+    const root = makeFiber({
+      type: "ROOT",
+      stateNode: container,
+      pendingProps: {
+        children: [
+          { type: FunctionComponent, props: {}, children: [] },
+        ],
+      },
+    });
+
+    performWorkLoop(root);
+    commitRoot(root);
+
+    const fnFiber = root.child;
+    const hostFiber = fnFiber?.child;
+
+    expect(fnFiber?.type).toBe(FunctionComponent);
+    expect(fnFiber?.stateNode).toBeNull();
+    expect(hostFiber?.type).toBe("section");
+    expect(container.firstElementChild).toBe(hostFiber?.stateNode);
+    expect((hostFiber?.stateNode as { tagName?: string })?.tagName).toBe("SECTION");
+  });
+
+  test("renders nested function components", () => {
+    const container = createMockElement("div");
+    const InnerComponent = () => ({
+      type: "span",
+      props: { id: "leaf" },
+      children: ["inner-text"],
+    });
+
+    const OuterComponent = () => ({
+      type: "div",
+      props: { id: "outer" },
+      children: [{ type: InnerComponent, props: {}, children: [] }],
+    });
+
+    const root = makeFiber({
+      type: "ROOT",
+      stateNode: container,
+      pendingProps: {
+        children: [{ type: OuterComponent, props: {}, children: [] }],
+      },
+    });
+
+    performWorkLoop(root);
+    commitRoot(root);
+
+    const outerFnFiber = root.child;
+    const outerHostFiber = outerFnFiber?.child;
+    const innerFnFiber = outerHostFiber?.child;
+    const innerHostFiber = innerFnFiber?.child;
+
+    expect(outerFnFiber?.type).toBe(OuterComponent);
+    expect(outerHostFiber?.type).toBe("div");
+    expect(innerFnFiber?.type).toBe(InnerComponent);
+    expect(innerHostFiber?.type).toBe("span");
+    expect(innerHostFiber?.stateNode).toBeDefined();
+    expect(container.firstElementChild?.childNodes).toContain(innerHostFiber?.stateNode);
+  });
+
+  test("does not assign stateNode to function component fibers", () => {
+    const container = createMockElement("div");
+    const FunctionComponent = () => ({ type: "button", props: {}, children: [] });
+
+    const root = makeFiber({
+      type: "ROOT",
+      stateNode: container,
+      pendingProps: {
+        children: [{ type: FunctionComponent, props: {}, children: [] }],
+      },
+    });
+
+    performWorkLoop(root);
+    commitRoot(root);
+
+    expect(root.child?.type).toBe(FunctionComponent);
+    expect(root.child?.stateNode).toBeNull();
+  });
 });
