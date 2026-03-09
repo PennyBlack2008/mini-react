@@ -446,6 +446,10 @@ describe("commitRoot / commitWork", () => {
 
         this.firstElementChild = this.childNodes.find((item: any) => item.tagName != null) ?? null;
       },
+      removeChild(child: any): void {
+        this.childNodes = this.childNodes.filter((item: any) => item !== child);
+        this.firstElementChild = this.childNodes.find((item: any) => item.tagName != null) ?? null;
+      },
     };
 
     return node as HTMLElement;
@@ -540,5 +544,207 @@ describe("commitRoot / commitWork", () => {
     commitRoot(root);
 
     expect(container.firstElementChild).toBe(title.stateNode);
+  });
+
+  test("updates text node content when Update flag is set", () => {
+    const container = createMockElement("div");
+    const root = makeFiber({
+      type: "ROOT",
+      stateNode: container,
+      pendingProps: {
+        children: [
+          {
+            type: TextSymbol,
+            key: "text",
+            props: {
+              nodeValue: "hello",
+            },
+            children: [],
+          },
+        ],
+      },
+    });
+
+    performWorkLoop(root);
+    commitRoot(root);
+
+    expect(root.child?.stateNode).toMatchObject({ textContent: "hello", nodeValue: "hello" });
+
+    root.alternate = {
+      ...root,
+      child: root.child,
+      sibling: null,
+      return: null,
+      alternate: null,
+      deletions: undefined,
+      flags: NoFlags,
+    };
+    root.pendingProps = {
+      children: [
+        {
+          type: TextSymbol,
+          key: "text",
+          props: {
+            nodeValue: "world",
+          },
+          children: [],
+        },
+      ],
+    };
+
+    performWorkLoop(root);
+    commitRoot(root);
+
+    expect(root.child?.stateNode).toMatchObject({ textContent: "world", nodeValue: "world" });
+  });
+
+  test("updates host props when Update flag is set", () => {
+    const container = createMockElement("div");
+    const root = makeFiber({
+      type: "ROOT",
+      stateNode: container,
+      pendingProps: {
+        children: [
+          {
+            type: "div",
+            key: "box",
+            props: {
+              id: "before",
+            },
+            children: [],
+          },
+        ],
+      },
+    });
+
+    performWorkLoop(root);
+    commitRoot(root);
+
+    expect((root.child?.stateNode as any)?.id).toBe("before");
+
+    root.alternate = {
+      ...root,
+      child: root.child,
+      sibling: null,
+      return: null,
+      alternate: null,
+      deletions: undefined,
+      flags: NoFlags,
+    };
+    root.pendingProps = {
+      children: [
+        {
+          type: "div",
+          key: "box",
+          props: {
+            id: "after",
+          },
+          children: [],
+        },
+      ],
+    };
+
+    performWorkLoop(root);
+    commitRoot(root);
+
+    expect((root.child?.stateNode as any)?.id).toBe("after");
+  });
+
+  test("removes deleted host node from the container", () => {
+    const container = createMockElement("div");
+    const root = makeFiber({
+      type: "ROOT",
+      stateNode: container,
+      pendingProps: {
+        children: [
+          {
+            type: "div",
+            key: "remove-me",
+            props: {
+              id: "removable",
+            },
+            children: [],
+          },
+        ],
+      },
+    });
+
+    performWorkLoop(root);
+    commitRoot(root);
+
+    expect(container.childNodes).toHaveLength(1);
+
+    root.alternate = {
+      ...root,
+      child: root.child,
+      sibling: null,
+      return: null,
+      alternate: null,
+      deletions: undefined,
+      flags: NoFlags,
+    };
+    root.pendingProps = {
+      children: [],
+    };
+
+    performWorkLoop(root);
+    commitRoot(root);
+
+    expect(container.childNodes).toHaveLength(0);
+    expect(container.firstElementChild).toBeNull();
+  });
+
+  test("removes host subtree when deleting non-host fiber", () => {
+    const container = createMockElement("div");
+    const Component = () => null;
+
+    const hostChild = makeFiber({
+      type: "span",
+      pendingProps: {
+        id: "inner",
+      },
+      stateNode: createMockElement("span"),
+      return: null,
+      flags: Placement,
+    });
+
+    const functionFiber = makeFiber({
+      type: Component,
+      child: hostChild,
+      return: null,
+      flags: NoFlags,
+    });
+    hostChild.return = functionFiber;
+
+    const root = makeFiber({
+      type: "ROOT",
+      stateNode: container,
+      pendingProps: null,
+      child: functionFiber,
+    });
+
+    root.child = functionFiber;
+    functionFiber.return = root;
+    commitRoot(root);
+
+    expect(container.childNodes).toHaveLength(1);
+
+    root.alternate = {
+      ...root,
+      child: root.child,
+      sibling: null,
+      return: null,
+      alternate: null,
+      deletions: undefined,
+      flags: NoFlags,
+    };
+    root.pendingProps = {
+      children: [],
+    };
+
+    performWorkLoop(root);
+    commitRoot(root);
+
+    expect(container.childNodes).toHaveLength(0);
   });
 });

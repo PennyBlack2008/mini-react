@@ -362,7 +362,89 @@ function getHostParent(fiber: Fiber): HTMLElement | null {
   return null;
 }
 
+function removeChildNode(
+  parent: HTMLElement,
+  child: any,
+): void {
+  if (typeof (parent as any).removeChild === "function") {
+    (parent as any).removeChild(child);
+    return;
+  }
+
+  const list = (parent as any).childNodes;
+  if (Array.isArray(list)) {
+    (parent as any).childNodes = list.filter((node: any) => node !== child);
+    if (
+      "firstElementChild" in (parent as any)
+      && typeof (parent as any).firstElementChild !== "undefined"
+    ) {
+      (parent as any).firstElementChild =
+        (parent as any).childNodes.find((node: any) => node?.tagName != null) ??
+        null;
+    }
+  }
+}
+
+function commitHostDeletion(fiber: Fiber): void {
+  if (fiber.stateNode == null) {
+    return;
+  }
+
+  const parent = getHostParent(fiber);
+  if (parent == null) {
+    return;
+  }
+
+  removeChildNode(parent, fiber.stateNode);
+  fiber.stateNode = null;
+}
+
+function commitDeletion(fiber: Fiber): void {
+  if (typeof fiber.type === "string" || fiber.type === TextSymbol) {
+    commitHostDeletion(fiber);
+    return;
+  }
+
+  let child = fiber.child;
+  while (child != null) {
+    commitDeletion(child);
+    child = child.sibling;
+  }
+}
+
+function commitUpdate(fiber: Fiber): void {
+  if (fiber.stateNode == null) {
+    return;
+  }
+
+  if (fiber.type === TextSymbol) {
+    const nextValue = String(fiber.pendingProps?.nodeValue ?? "");
+
+    if ("textContent" in (fiber.stateNode as any)) {
+      fiber.stateNode.textContent = nextValue;
+    }
+
+    if ("nodeValue" in (fiber.stateNode as any)) {
+      fiber.stateNode.nodeValue = nextValue;
+    }
+
+    return;
+  }
+
+  if (typeof fiber.type === "string") {
+    applyHostProps(fiber.stateNode, fiber.pendingProps as Record<string, unknown> | null);
+  }
+}
+
 export function commitWork(fiber: Fiber): void {
+  if (fiber.deletions && fiber.deletions.length > 0) {
+    for (const deletedFiber of fiber.deletions) {
+      commitDeletion(deletedFiber);
+    }
+
+    fiber.deletions = [];
+  }
+
   const isHostComponent =
     typeof fiber.type === "string" || fiber.type === TextSymbol;
   const shouldAppend =
@@ -378,6 +460,11 @@ export function commitWork(fiber: Fiber): void {
     fiber.flags &= ~Placement;
   }
 
+  if ((fiber.flags & Update) !== 0) {
+    commitUpdate(fiber);
+    fiber.flags &= ~Update;
+  }
+
   if (fiber.child != null) {
     commitWork(fiber.child);
   }
@@ -388,11 +475,11 @@ export function commitWork(fiber: Fiber): void {
 }
 
 export function commitRoot(rootFiber: Fiber): void {
-  if (rootFiber.child == null) {
+  if (rootFiber.child == null && (rootFiber.deletions == null || rootFiber.deletions.length === 0)) {
     return;
   }
 
-  commitWork(rootFiber.child);
+  commitWork(rootFiber);
 }
 
 export function reconcileChildren(
